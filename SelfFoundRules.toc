@@ -1,0 +1,38 @@
+# ===========================================================================
+# Self-Found Rules 
+# A personal self-found ruleset for Wow Classic / TBC Anniversary,
+# with the intent to build WoW characters without outside help,
+# but without the fatality of hardcore mode, 
+# similar to OSRS Ironman.
+#
+# Rules: No AH, no mail, no trading, no guild bank
+# Allowed: Grouping, dungeons, professions, talents, any gear quality, dying
+# ===========================================================================
+
+# Game build that this addon targets. If it doesn't match the 
+# live client, WoW flags the addon as "out of date".
+# You can find the real number in-game with:
+#   /dump select(4, GetBuildInfo())
+## Interface: 20506
+
+# Name shown in AddOns list at character select.
+## Title: Self-Found Rules
+
+# Description text under the title in that list.
+## Notes: No trading, mail, auction house, or guild bank.
+
+## Author: Ashwin
+## Version: 1.0
+
+# Names a global Lua table that WoW saves to disk when You
+# log out and restores when you log in.
+#   SavedVariables              = shared across the account
+#   SavedVariablesPerCharacter  = separate per character
+# Per-character so the other alts aren't affected.
+## SavedVariablesPerCharacter: SFR_Data
+
+# ---- Files to load, in order ----
+# Listed top to bottom. If it's split into multiple files later,
+# order matters - a file can only use things that 
+# an earlier file already defined.
+SelfFoundRules.lua
