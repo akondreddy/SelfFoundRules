@@ -13,7 +13,7 @@
 # live client, WoW flags the addon as "out of date".
 # You can find the real number in-game with:
 #   /dump select(4, GetBuildInfo())
-## Interface: 20506
+## Interface: 11509, 16001, 20506
 
 # Name shown in AddOns list at character select.
 ## Title: Self-Found Rules
