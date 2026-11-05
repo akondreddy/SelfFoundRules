@@ -21,8 +21,11 @@
 # Description text under the title in that list.
 ## Notes: No trading, mail, auction house, or guild bank.
 
-## Author: Ashwin
-## Version: 1.0
+## Author: Ashwin Kondreddy
+## Version: 1.0.0
+
+# Shown in the AddOns list and used by addon managers to find the project.
+## X-Website: https://github.com/akondreddy/SelfFoundRules
 
 # Names a global Lua table that WoW saves to disk when You
 # log out and restores when you log in.
