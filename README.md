@@ -9,11 +9,13 @@ Just the one thing: everything you have, you found yourself.
 
 **Blocked:**
 - Auction House
-- Mail (sending and receiving)
+- Sending mail, and taking anything out of player-sent mail
 - Trading with other players
 - Guild bank
 
 **Allowed:**
+- NPC and system mail — quest rewards, profession deliveries,
+  reputation rewards and Blizzard restorations all arrive this way
 - Grouping and dungeons
 - Professions
 - Talents
@@ -31,9 +33,13 @@ bundled with permadeath. This separates the two.
 ## Installation
 
 1. Download the latest release
-2. Extract into your AddOns folder:
+2. Extract into the AddOns folder of whichever client you play. Each
+   one has its own, and the addon has to be installed in each
+   separately:
    ```
-   World of Warcraft/_classic_/Interface/AddOns/
+   World of Warcraft/_classic_era_/Interface/AddOns/    # Classic Era
+   World of Warcraft/_anniversary_/Interface/AddOns/    # TBC Anniversary
+   World of Warcraft/_forever_/Interface/AddOns/        # Warcraft Forever
    ```
 3. The folder structure should look like:
    ```
@@ -52,12 +58,20 @@ bundled with permadeath. This separates the two.
 | `/sfr pause` | Suspend enforcement (actions still logged) |
 | `/sfr reset <message>` | Archive the run and start over. Message required |
 | `/sfr resets` | History of archived runs |
+| `/sfr history` | The chronicle - every level, with rules in force at the time | 
 | `/sfr show <n>` | Full detail of archived run #n |
 
 ## How enforcement works
 
-**Strict mode (default):** restricted windows close the instant they
-open, with a warning and a sound.
+**Strict mode (default):** the Auction House, trade and guild bank
+windows close the instant they open, with a warning and a sound.
+
+**Mail is handled differently.** The mailbox always opens, whatever the
+mode, because Classic and TBC use NPC mail for quest rewards,
+profession deliveries and reputation rewards — closing it outright
+would lock those out. Instead, the addon warns when player-sent mail is
+sitting in the inbox, and logs a violation only if you take an item or
+gold out of it. NPC mail is untouched.
 
 **Backstop:** hooks on `TakeInboxItem`, `TakeInboxMoney`, `AcceptTrade`,
 `PlaceAuctionBid`, `StartAuction`, and guild bank withdrawals log an

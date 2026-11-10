@@ -5,7 +5,9 @@
 
     Rules enforced:
       - No Auction House
-      - No mail (sending or receiving)
+      - No sending mail, and nothing taken from player-sent mail.
+        NPC and system mail is allowed: Classic and TBC deliver quest
+        rewards, profession items and reputation rewards that way.
       - No trading with players
       - No guild bank
 
@@ -19,6 +21,7 @@
       /sfr pause            toggle enforcement (breaks are still logged)
       /sfr reset <message>  archive the current run and start over
       /sfr resets           history of previous runs
+      /sfr history          the level-by-level chronicle
       /sfr show <n>         full detail of archived run #n
 -------------------------------------------------------------------]]--
 
@@ -37,6 +40,8 @@ local DEFAULTS = {
     started     = nil,    -- { level, time }
     resets      = {},     -- archived runs, newest last
     version     = 2,
+    history     = {},     -- append-only: { kind, level, time, build, expansion, zone, played, rules, detail }
+    schema      = 1,     -- data shape, separate from the addon's release version
 }
 
 local function InitDB()
@@ -48,6 +53,11 @@ local function InitDB()
     end
     if not SFR_Data.started then
         SFR_Data.started = { level = UnitLevel("player"), time = time() }
+    end
+    -- Written once. The honest statement of where the record beings:
+    -- level before this were played but not observed
+    if not SFR_Data.historyBegins then
+        SFR_Data.historyBegins = { level = UnitLevel("player"), time = time() }
     end
 end
 
@@ -86,8 +96,98 @@ local function CopyList(src)
 end
 
 ----------------------------------------------------------------------
+-- Mail
+----------------------------------------------------------------------
+
+-- The TakeInboxItem hook runs AFTER the take. Taking the last item
+-- deletes the letter and renumbers everything below it, so asking the
+-- API at hook time can describe a different letter. Snapshot while the
+-- inbox is stable instead.
+local mailSnapshot = {}
+
+-- MAIL_INBOX_UPDATE fires on every take, delete and return, so warning
+-- from there directly would spam chat. One warning per visit to the
+-- mailbox reads better than a timed cooldown: the visit is the unit the
+-- player actually experiences.
+local mailWarned = false
+
+-- canReply is a proxy, not a direct test: it means the client thinks
+-- there is someone to reply to, which player mail has and quest mail
+-- does not. Preferred over matching the sender's name because a name
+-- shape only correlates with being a player, whereas this asks a
+-- question close to the one we mean.
+-- NOT VERIFIED IN-GAME YET -- all four mail paths below depend on it.
+local function MailIsFromPlayer(index)
+    local _, _, sender, _, _, _, _, _, _, _, _, canReply = GetInboxHeaderInfo(index)
+    -- Using not not for simplifying to true and false, no nil
+    return not not canReply, sender
+end
+
+local function SnapshotInbox()
+    mailSnapshot = {}
+    for i = 1, GetInboxNumItems() do
+        local isPlayer, sender = MailIsFromPlayer(i)
+        mailSnapshot[i] = { isPlayer = isPlayer, sender = sender }
+    end
+end
+
+-- pairs rather than ipairs: SnapshotInbox fills 1..n with no gaps today,
+-- but ipairs would silently stop at the first hole if that ever changes.
+local function PlayerMailCount()
+    local n = 0
+    for i, m in pairs(mailSnapshot) do
+        if m.isPlayer then n = n + 1 end
+    end
+    return n
+end
+
+-- Naming the senders makes the warning actionable: you can tell at a
+-- glance whether it's an alt you forgot about or something unexpected.
+local function PlayerMailSenders()
+    local names = {}
+    for _, m in pairs(mailSnapshot) do
+        if m.isPlayer then table.insert(names, m.sender or "?") end
+    end
+    return table.concat(names, ", ")
+end
+
+----------------------------------------------------------------------
 -- Enforcement
 ----------------------------------------------------------------------
+local EXPANSION_BY_MAJOR = {
+    ["1"] = "Classic", ["2"] = "TBC", ["3"] = "WotLK",
+    ["4"] = "Cataclysm", ["5"] = "MoP",
+}
+
+-- Never asks the player what expansion it's on: the client knows.
+-- Falls through to the raw version string rather than guessing, so a 
+-- future flavor records something true instead of something wrong.
+local function CurrentExpansion()
+    local version = GetBuildInfo()
+    local major = version:match("^(%d+)")
+    return EXPANSION_BY_MAJOR[major] or ("Unknown " .. version), version
+end
+
+-- States the current rules that will be recorded in the log
+local function CurrentRules()
+    if SFR_Data.paused then return "paused" end
+    return SFR_Data.strict and "strict" or "warn"
+end
+
+local function LogEvent(kind, level, detail)
+    local expansion, build = CurrentExpansion()
+    table.insert(SFR_Data.history, {
+        kind        = kind,
+        level       = level,
+        time        = time(),   -- In Unix, not formatted
+        build       = build,
+        expansion   = expansion,
+        zone        = GetRealZoneText() or "?",
+        rules       = CurrentRules(),
+        played      = nil,      -- filled in by TIME_PLAYED_MSG if it arrives
+        detail      = detail,
+    })
+end
 
 local function Intercept(what, closeFunc)
     if SFR_Data.paused then return end
@@ -174,6 +274,40 @@ local function PrintResetHistory()
     print("  /sfr show <n> for full detail")
 end
 
+local function FormatPlayed(seconds)
+    if not seconds then return "played unknown" end
+    local d, hr = math.floor(seconds / 86400), math.floor((seconds % 86400) / 3600)
+    return ("%dd %dh played"):format(d, hr)
+end
+
+-- The shape that we want to structure the event:
+-- Level 60 - TBC 2.5.6 - 2027-03-14 - 6d 11h played - rules: strict
+local function FormatEvent(e)
+    local head
+    if e.kind == "level" then
+        head = ("Level %s"):format(tostring(e.level or "?"))
+    elseif e.kind == "gap" then
+        local d = e.detail or {}
+        head = ("|cffFFB74DUnobserved: level %s -> %s|r"):format(
+            tostring(d.from or "?"), tostring(d.to or "?"))
+    else
+        head = tostring(e.kind or "?")
+    end
+    return ("%s — %s %s — %s — %s — rules: %s"):format(
+        head, e.expansion or "?", e.build or "?",
+        date("%Y-%m-%d", e.time or 0), FormatPlayed(e.played), e.rules or "?")
+end
+
+local function PrintHistory()
+    local h, b = SFR_Data.history, (SFR_Data.historyBegins or {})
+    Say(("The chronicle (%d):"):format(#h))
+    print(("  Begins at level %s; earlier levels were played but not observed."):format(
+        tostring(b.level or "?")))
+    for _, e in ipairs(h) do
+        print("  " .. FormatEvent(e))
+    end
+end
+
 local function ShowReset(n)
     local r = SFR_Data.resets[n]
     if not r then
@@ -212,10 +346,29 @@ f:RegisterEvent("MAIL_SHOW")
 f:RegisterEvent("TRADE_SHOW")
 f:RegisterEvent("GUILDBANKFRAME_OPENED")
 f:RegisterEvent("MAIL_SEND_SUCCESS")
+f:RegisterEvent("MAIL_INBOX_UPDATE")
+f:RegisterEvent("MAIL_CLOSED")
+f:RegisterEvent("PLAYER_LEVEL_UP")
+f:RegisterEvent("TIME_PLAYED_MSG")
 
-f:SetScript("OnEvent", function(self, event)
+f:SetScript("OnEvent", function(self, event, arg1, arg2)
     if event == "PLAYER_LOGIN" then
         InitDB()
+        -- Levels gained with the addon off are real but unobserved.
+        -- Record the gap; never fabricate the individual level-ups.
+        local lvl, lastLevel = UnitLevel("player"), nil
+        for i = #SFR_Data.history, 1, -1 do
+            if SFR_Data.history[i].kind == "level" then
+                -- Break on the first level entry
+                lastLevel = SFR_Data.history[i].level
+                break
+            end
+        end
+        local from = lastLevel or SFR_Data.historyBegins.level
+        if lvl > from then
+            -- Log the gapped level
+            LogEvent("gap", lvl, { from = from, to = lvl })
+        end
         local v, r = #SFR_Data.violations, #SFR_Data.resets
         Say(("Active. Strict: %s. Violations: %d. Resets: %d."):format(
             SFR_Data.strict and "|cff81C784on|r" or "|cffFFB74Doff|r", v, r))
@@ -229,13 +382,35 @@ f:SetScript("OnEvent", function(self, event)
     elseif event == "AUCTION_HOUSE_SHOW" then
         Intercept("The Auction House", CloseAuctionHouse)
     elseif event == "MAIL_SHOW" then
-        Intercept("Mail", CloseMail)
+        -- The mailbox is allowed to open now: NPC mail carries quest rewards,
+        -- profession deliveries and reputation items. Only player mail is a break.
+        mailSnapshot, mailWarned = {}, false
+    elseif event == "MAIL_INBOX_UPDATE" then
+        SnapshotInbox()
+        if not SFR_Data.paused and PlayerMailCount() > 0 and not mailWarned then
+            mailWarned = true
+            SFR_Data.blocks = (SFR_Data.blocks or 0) + 1
+            Warn("Warning: Mailbox has player-sent mail from " .. PlayerMailSenders() .. ". Avoid opening.")
+        end
+    
     elseif event == "TRADE_SHOW" then
         Intercept("Trading", CancelTrade)
     elseif event == "GUILDBANKFRAME_OPENED" then
         Intercept("The guild bank", CloseGuildBankFrame)
     elseif event == "MAIL_SEND_SUCCESS" then
         Violation("Sent mail")
+    elseif event == "MAIL_CLOSED" then
+        mailSnapshot, mailWarned = {}, false
+    elseif event == "PLAYER_LEVEL_UP" then
+        LogEvent("level", arg1)
+        RequestTimePlayed()
+        Say(("Level %d recorded - %s, rules: %s"): format(
+            arg1, select(1, CurrentExpansion()), CurrentRules()))
+    elseif event == "TIME_PLAYED_MSG" then
+        -- arg1 is the total seconds played. Attaches to the newest entry that
+        -- lacks it; if this never fires, played stays nil rather than a guess
+        local last = SFR_Data.history[#SFR_Data.history]
+        if last and not last.played then last.played = arg1 end
     end
 end)
 
@@ -247,8 +422,26 @@ local function SafeHook(name, fn)
     if type(_G[name]) == "function" then hooksecurefunc(name, fn) end
 end
 
-SafeHook("TakeInboxItem",   function() Violation("Took an item from mail") end)
-SafeHook("TakeInboxMoney",  function() Violation("Took gold from mail")    end)
+-- These consult the snapshot rather than calling GetInboxHeaderInfo:
+-- hooksecurefunc runs us after the take, by which point the letter may
+-- be gone and the indices shifted.
+--
+-- Fails open. No snapshot entry means no violation, so a take after a
+-- /reload at an open mailbox goes unlogged. Logging it as unknown
+-- provenance would be more honest, but that needs Violation to record
+-- an evidence class first.
+SafeHook("TakeInboxItem",   function(index)
+    local m = mailSnapshot[index]
+    if m and m.isPlayer then
+        Violation("Took an item from player-sent mail (" .. (m.sender or "?") .. ")")
+    end
+end)
+SafeHook("TakeInboxMoney",  function(index) 
+    local m = mailSnapshot[index]
+    if m and m.isPlayer then
+        Violation("Took gold from player-sent mail (" .. (m.sender or "?") .. ")")
+    end
+end)
 SafeHook("AcceptTrade",     function() Violation("Accepted a trade")       end)
 SafeHook("PlaceAuctionBid", function() Violation("Bid/bought on the AH")   end)
 SafeHook("StartAuction",    function() Violation("Posted an auction")      end)
@@ -284,7 +477,9 @@ SlashCmdList["SELFFOUNDRULES"] = function(msg)
     elseif cmd == "strict" then
         SFR_Data.strict = not SFR_Data.strict
         Say("Strict mode " .. (SFR_Data.strict
-            and "|cff81C784ON|r — restricted windows close automatically."
+            -- Mail is deliberately outside this toggle: the mailbox always
+            -- opens, because closing it would lock out NPC mail too.
+            and "|cff81C784ON|r — the AH, trade and guild bank windows close automatically."
             or  "|cffFFB74DOFF|r — you will only be warned."))
 
     elseif cmd == "pause" then
@@ -303,8 +498,10 @@ SlashCmdList["SELFFOUNDRULES"] = function(msg)
         end
         ArchiveAndReset(rest)
 
-    elseif cmd == "resets" or cmd == "history" then
+    elseif cmd == "resets" then
         PrintResetHistory()
+    elseif cmd == "history" then
+        PrintHistory()
 
     elseif cmd == "show" then
         ShowReset(tonumber(rest))
@@ -312,7 +509,7 @@ SlashCmdList["SELFFOUNDRULES"] = function(msg)
     else
         local s = SFR_Data.started or {}
         Say("|cffFFFFFF" .. (UnitName("player") or "?") .. "|r — self-found")
-        print("  Rules: no AH, no mail, no trading, no guild bank")
+        print("  Rules: no AH, no player-sent mail, no trading, no guild bank")
         print("  Allowed: grouping, dungeons, professions, talents, any gear")
         print(("  Run started: level %s"):format(tostring(s.level or "?")))
         print(("  Current:     level %d"):format(UnitLevel("player")))
@@ -325,6 +522,6 @@ SlashCmdList["SELFFOUNDRULES"] = function(msg)
             print(("  Status: |cffFF5252BROKEN|r (%d violations) — /sfr log"):format(
                 #SFR_Data.violations))
         end
-        print("  Commands: log | strict | pause | reset <msg> | resets | show <n>")
+        print("  Commands: log | history | strict | pause | reset <msg> | resets | show <n>")
     end
 end
