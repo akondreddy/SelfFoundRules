@@ -35,7 +35,14 @@
 ## SavedVariablesPerCharacter: SFR_Data
 
 # ---- Files to load, in order ----
-# Listed top to bottom. If it's split into multiple files later,
-# order matters - a file can only use things that 
-# an earlier file already defined.
-SelfFoundRules.lua
+# Load order is forced by dependencies, not preference:
+# Core      defines Say/Warn/InitDB; everything uses them
+# Journal   before Runs, because ArchiveAndReset logs a boundary event
+# Rules     before Mail, because the inbox hooks call Violation
+# Commands  last, because it calls into all of the above
+Core.lua
+Journal.lua
+Rules.lua
+Mail.lua
+Runs.lua
+Commands.lua
