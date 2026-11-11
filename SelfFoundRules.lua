@@ -41,7 +41,8 @@ local DEFAULTS = {
     resets      = {},     -- archived runs, newest last
     version     = 2,
     history     = {},     -- append-only: { kind, level, time, build, expansion, zone, played, rules, detail }
-    schema      = 1,     -- data shape, separate from the addon's release version
+    schema      = 1,      -- data shape, separate from the addon's release version
+    screenshots = true,   -- 
 }
 
 local function InitDB()
@@ -220,6 +221,10 @@ end
 local function ArchiveAndReset(message)
     local when, lvl, zone = Stamp()
     local s = SFR_Data.started or {}
+    -- The boundary IS a history event. History is append-only: a reset
+    -- is a new chapter, not an erasure
+    LogEvent("reset", lvl, { message = message, run = #SFR_Data.resets + 1 })
+    RequestTimePlayed()
 
     local entry = {
         -- the "commit message"
@@ -234,11 +239,13 @@ local function ArchiveAndReset(message)
         blocks       = SFR_Data.blocks or 0,
         violations   = CopyList(SFR_Data.violations),
         wasClean     = (#SFR_Data.violations == 0),
+        historyAt    = #SFR_Data.history,
     }
 
     table.insert(SFR_Data.resets, entry)
 
-    -- wipe the live run
+    -- wipe the live run counters. history is NOT wiped:
+    -- immutable history
     SFR_Data.violations = {}
     SFR_Data.blocks     = 0
     SFR_Data.started    = { level = lvl, time = time() }
@@ -290,6 +297,10 @@ local function FormatEvent(e)
         local d = e.detail or {}
         head = ("|cffFFB74DUnobserved: level %s -> %s|r"):format(
             tostring(d.from or "?"), tostring(d.to or "?"))
+    elseif e.kind == "reset" then
+        local d = e.detail or {}
+        head = ("|cffFF5252 - run %s ended -|r %s"):format(
+            tostring(d.run or "?"), tostring(d.message or "no message"))
     else
         head = tostring(e.kind or "?")
     end
