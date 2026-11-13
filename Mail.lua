@@ -46,7 +46,7 @@ local mailWarned = false
 -- does not. Preferred over matching the sender's name because a name
 -- shape only correlates with being a player, whereas this asks a
 -- question close to the one we mean.
--- NOT VERIFIED IN-GAME YET -- all four mail paths below depend on it.
+-- VERIFIED IN-GAME -- all four mail paths below depend on it.
 local function MailIsFromPlayer(index)
     local _, _, sender, _, _, _, _, _, _, _, _, canReply = GetInboxHeaderInfo(index)
     -- Using not not for simplifying to true and false, no nil

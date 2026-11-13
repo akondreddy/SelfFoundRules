@@ -23,7 +23,7 @@ local Say, Warn = SFR.Say, SFR.Warn
 -- default for capabilities, but not for identity,
 --
 -- Verified in-game 2026-11-10: Forever = 18, Classic Era = 2, Retail = 1.
--- TBC Anniversary = 
+-- TBC Anniversary = 5
 --
 local PROJECT_NAMES = {
     [1] = "Retail",
@@ -55,7 +55,7 @@ end
 
 local function LogEvent(kind, level, detail)
     local expansion, build, project = CurrentExpansion()
-    table.insert(SFR_Data.history, {
+    local e = {
         kind        = kind,
         level       = level,
         time        = time(),   -- In Unix, not formatted
@@ -66,7 +66,9 @@ local function LogEvent(kind, level, detail)
         rules       = CurrentRules(),
         played      = nil,      -- filled in by TIME_PLAYED_MSG if it arrives
         detail      = detail,
-    })
+    }
+    table.insert(SFR_Data.history, e)
+    return e
 end
 
 ----------------------------------------------------------------------
@@ -140,7 +142,7 @@ journal:SetScript("OnEvent", function(self, event, arg1, arg2)
             LogEvent("gap", lvl, { from = from, to = lvl })
         end
 
-        elseif event == "PLAYER_LEVEL_UP" then
+    elseif event == "PLAYER_LEVEL_UP" then
         LogEvent("level", arg1)
         RequestTimePlayed()
         Say(("Level %d recorded - %s, rules: %s"): format(

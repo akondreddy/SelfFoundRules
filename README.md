@@ -44,7 +44,7 @@ bundled with permadeath. This separates the two.
 3. The folder structure should look like:
    ```
    AddOns/SelfFoundRules/SelfFoundRules.toc
-   AddOns/SelfFoundRules/SelfFoundRules.lua
+   AddOns/SelfFoundRules/*.lua      (Core, Journal, Rules, Mail, Runs, Commands, Screenshots)
    ```
 4. Restart WoW or `/reload`
 
@@ -91,6 +91,20 @@ count, and the complete violation log.
 ```
 /sfr reset fresh start after the Deadmines group handed me a drop
 ```
+
+## Screenshots
+
+When you level up, the addon asks the game to take a screenshot a
+couple of seconds later — long enough for the level-up banner to be on
+screen. This is on by default.
+
+Pictures go to your WoW client's normal `Screenshots/` folder, in the
+usual format. **Nothing is uploaded anywhere**, and the addon never
+reads, renames or moves the files — it can't. It only records that it
+asked, and whether the game said the shot succeeded.
+
+That record lives alongside the level entry in your history, so a
+future journal tool can match pictures to milestones by timestamp.
 
 ## Data
 

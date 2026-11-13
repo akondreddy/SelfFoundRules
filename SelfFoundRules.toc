@@ -22,7 +22,7 @@
 ## Notes: No auction house, trading, guild bank, or player-sent mail. NPC mail still works.
 
 ## Author: Ashwin Kondreddy
-## Version: 1.1.0
+## Version: 1.2.0
 
 # Shown in the AddOns list and used by addon managers to find the project.
 ## X-Website: https://github.com/akondreddy/SelfFoundRules
@@ -36,11 +36,13 @@
 
 # ---- Files to load, in order ----
 # Load order is forced by dependencies, not preference:
-# Core      defines Say/Warn/InitDB; everything uses them
-# Journal   before Runs, because ArchiveAndReset logs a boundary event
-# Rules     before Mail, because the inbox hooks call Violation
-# Commands  last, because it calls into all of the above
+# Core          defines Say/Warn/InitDB; everything uses them
+# Screenshots   Journal asks for a screenshot, doesn't need to know journal entry
+# Journal       before Runs, because ArchiveAndReset logs a boundary event
+# Rules         before Mail, because the inbox hooks call Violation
+# Commands      last, because it calls into all of the above
 Core.lua
+Screenshots.lua
 Journal.lua
 Rules.lua
 Mail.lua
