@@ -143,11 +143,12 @@ journal:SetScript("OnEvent", function(self, event, arg1, arg2)
         end
 
     elseif event == "PLAYER_LEVEL_UP" then
-        LogEvent("level", arg1)
+        local e = LogEvent("level", arg1)
         RequestTimePlayed()
-        Say(("Level %d recorded - %s, rules: %s"): format(
+        SFR.RequestScreenshot(e, "level")
+        Say(("Level %d recorded - %s, rules: %s"):format(
             arg1, select(1, CurrentExpansion()), CurrentRules()))
-
+            
     elseif event == "TIME_PLAYED_MSG" then
         -- arg1 is the total seconds played. Attaches to the newest entry that
         -- lacks it; if this never fires, played stays nil rather than a guess

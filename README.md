@@ -56,6 +56,7 @@ bundled with permadeath. This separates the two.
 | `/sfr log` | Violation log for the current run |
 | `/sfr strict` | Toggle auto-close vs warn-only |
 | `/sfr pause` | Suspend enforcement (actions still logged) |
+| `/sfr screenshots` | Toggle automatic level-up screenshots |
 | `/sfr reset <message>` | Archive the run and start over. Message required |
 | `/sfr resets` | History of archived runs |
 | `/sfr history` | The chronicle - every level, with rules in force at the time | 
@@ -96,7 +97,7 @@ count, and the complete violation log.
 
 When you level up, the addon asks the game to take a screenshot a
 couple of seconds later — long enough for the level-up banner to be on
-screen. This is on by default.
+screen. This is on by default; `/sfr screenshots` turns it off.
 
 Pictures go to your WoW client's normal `Screenshots/` folder, in the
 usual format. **Nothing is uploaded anywhere**, and the addon never

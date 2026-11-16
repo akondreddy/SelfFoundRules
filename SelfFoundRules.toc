@@ -22,7 +22,7 @@
 ## Notes: No auction house, trading, guild bank, or player-sent mail. NPC mail still works.
 
 ## Author: Ashwin Kondreddy
-## Version: 1.2.0
+## Version: 1.2.1
 
 # Shown in the AddOns list and used by addon managers to find the project.
 ## X-Website: https://github.com/akondreddy/SelfFoundRules

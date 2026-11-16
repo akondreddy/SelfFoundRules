@@ -12,6 +12,7 @@
       /sfr log              violation log
       /sfr strict           toggle strict mode (auto-close vs warn only)
       /sfr pause            toggle enforcement (breaks are still logged)
+      /sfr screenshots      toggle automatic level-up screenshots
       /sfr reset <message>  archive the current run and start over
       /sfr resets           history of previous runs
       /sfr history          the level-by-level chronicle
@@ -85,6 +86,12 @@ SlashCmdList["SELFFOUNDRULES"] = function(msg)
             and "|cffFFB74DEnforcement PAUSED.|r Anything you do now is still logged."
             or  "|cff81C784Enforcement resumed.|r")
 
+    elseif cmd == "screenshots" then
+        SFR_Data.screenshots = not SFR_Data.screenshots
+        Say("Screenshots " .. (SFR_Data.screenshots
+            and "|cff81C784ON|r — requested on level-up."
+            or  "|cffFFB74DOFF|r — none will be requested."))
+
     elseif cmd == "reset" then
         -- like `git commit`, refuse without a message
         if rest == "" then
@@ -119,7 +126,7 @@ SlashCmdList["SELFFOUNDRULES"] = function(msg)
             print(("  Status: |cffFF5252BROKEN|r (%d violations) — /sfr log"):format(
                 #SFR_Data.violations))
         end
-        print("  Commands: log | history | strict | pause | reset <msg> | resets | show <n>")
+        print("  Commands: log | history | strict | pause | screenshots | reset <msg> | resets | show <n>")
     end
 end
 
