@@ -27,16 +27,19 @@ local SHORT = "|cff4FC3F7[Self-Found]|r"
 ----------------------------------------------------------------------
 
 local DEFAULTS = {
-    strict      = true,   -- auto-close restricted windows
-    paused      = false,  -- temporarily disable enforcement
-    violations  = {},     -- { time, level, zone, what }
-    blocks      = 0,      -- how many times we stopped you
-    started     = nil,    -- { level, time }
-    resets      = {},     -- archived runs, newest last
-    version     = 2,
-    history     = {},     -- append-only: { kind, level, time, build, expansion, project, zone, played, rules, detail }
-    schema      = 1,      -- data shape, separate from the addon's release version
-    screenshots = true,   -- 
+    strict          = true,   -- auto-close restricted windows
+    paused          = false,  -- temporarily disable enforcement
+    violations      = {},     -- { time, level, zone, what }
+    blocks          = 0,      -- Running total of the 3 below
+    blocksClosed    = 0,      -- Amount of times close function called and window went away
+    blocksFailed    = 0,      -- Amount of times close function called and window didn't go away
+    blocksWarned    = 0,      -- Close function never called. Strict off or no close function
+    started         = nil,    -- { level, time }
+    resets          = {},     -- archived runs, newest last
+    version         = 2,
+    history         = {},     -- append-only: { kind, level, time, build, expansion, project, zone, played, rules, evidence, detail }
+    schema          = 1,      -- data shape, separate from the addon's release version. No need to increment for purely additive changes.
+    screenshots     = true,   -- toggle auto screenshots on level up, default on
 }
 
 -- Table shape only. Safe at ADDON_LOADED because it touches nothing
@@ -103,6 +106,14 @@ local function CopyList(src)
     return out
 end
 
+local function After(secs, fn)
+    if C_Timer and C_Timer.After then
+        C_Timer.After(secs, fn)
+    else
+        fn()   
+    end
+end
+
 ----------------------------------------------------------------------
 -- Database init
 ----------------------------------------------------------------------
@@ -139,3 +150,4 @@ SFR.Stamp       = Stamp
 SFR.CopyList    = CopyList
 SFR.InitDB      = InitDB
 SFR.EnsureRun   = EnsureRun
+SFR.After       = After

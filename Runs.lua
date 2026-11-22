@@ -25,32 +25,38 @@ local function ArchiveAndReset(message)
     local s = SFR_Data.started or {}
     -- The boundary IS a history event. History is append-only: a reset
     -- is a new chapter, not an erasure
-    LogEvent("reset", lvl, { message = message, run = #SFR_Data.resets + 1 })
+    LogEvent("reset", lvl, "manual", { message = message, run = #SFR_Data.resets + 1 })
     RequestTimePlayed()
 
     local entry = {
         -- the "commit message"
-        message      = message,
+        message         = message,
         -- when and where the reset happened
-        resetTime    = when,
-        resetLevel   = lvl,
-        resetZone    = zone,
+        resetTime       = when,
+        resetLevel      = lvl,
+        resetZone       = zone,
         -- snapshot of the run being archived
-        startedLevel = s.level,
-        startedTime  = s.time and date("%Y-%m-%d %H:%M", s.time) or "?",
-        blocks       = SFR_Data.blocks or 0,
-        violations   = CopyList(SFR_Data.violations),
-        wasClean     = (#SFR_Data.violations == 0),
-        historyAt    = #SFR_Data.history,
+        startedLevel    = s.level,
+        startedTime     = s.time and date("%Y-%m-%d %H:%M", s.time) or "?",
+        blocks          = SFR_Data.blocks or 0,
+        blocksClosed    = SFR_Data.blocksClosed or 0,
+        blocksWarned    = SFR_Data.blocksWarned or 0,
+        blocksFailed    = SFR_Data.blocksFailed or 0,
+        violations      = CopyList(SFR_Data.violations),
+        wasClean        = (#SFR_Data.violations == 0),
+        historyAt       = #SFR_Data.history,
     }
 
     table.insert(SFR_Data.resets, entry)
 
     -- wipe the live run counters. history is NOT wiped:
     -- immutable history
-    SFR_Data.violations = {}
-    SFR_Data.blocks     = 0
-    SFR_Data.started    = { level = lvl, time = time() }
+    SFR_Data.violations         = {}
+    SFR_Data.blocks             = 0
+    SFR_Data.blocksClosed       = 0
+    SFR_Data.blocksWarned       = 0
+    SFR_Data.blocksFailed       = 0
+    SFR_Data.started            = { level = lvl, time = time() }
 
     local n = #SFR_Data.resets
     Say(("Run archived as reset #%d."):format(n))
@@ -99,7 +105,11 @@ local function ShowReset(n)
         r.resetTime or "?", tostring(r.resetLevel or "?"), r.resetZone or "?"))
     print(("  Run began: %s, level %s"):format(
         r.startedTime or "?", tostring(r.startedLevel or "?")))
-    print(("  Blocked:   %d times"):format(r.blocks or 0))
+    -- Runs archived before the breakdown existed have only the total, so the
+    -- sub-counters read 0 rather than being absent. That is a gap in the
+    -- record, not three real zeroes -- do not read them as measurements.
+    print(("  Blocked:   %d times (%d closed, %d warned, %d failed)"):format(
+        r.blocks or 0, r.blocksClosed or 0, r.blocksWarned or 0, r.blocksFailed or 0))
 
     local vs = r.violations or {}
     if #vs == 0 then

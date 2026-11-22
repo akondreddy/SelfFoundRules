@@ -1,15 +1,8 @@
+-- We want the level-up banner on screen so fire two seconds after the event.
 local SHOT_DELAY = 2
 -- Import
 local ADDON, SFR = ...
--- We want the level-up banner on screen so fire two seconds after the event.
-local function After(secs, fn)
-    if C_Timer and C_Timer.After then
-        C_Timer.After(secs, fn)
-    else
-        fn()    -- no timer; take it immediately rather than not at all
-    end
-end
-
+local After = SFR.After
 local pending = nil -- entry awaiting an outcome
 
 local shots = CreateFrame("Frame", ADDON .. "ShotFrame")

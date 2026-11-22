@@ -100,7 +100,10 @@ mail:SetScript("OnEvent", function(self, event)
         SnapshotInbox()
         if not SFR_Data.paused and PlayerMailCount() > 0 and not mailWarned then
             mailWarned = true
-            SFR_Data.blocks = (SFR_Data.blocks or 0) + 1
+            -- blocks is the running total, so it moves with every sub-counter.
+            -- Mail is always "warned": there is no window to close, by design.
+            SFR_Data.blocks       = (SFR_Data.blocks or 0) + 1
+            SFR_Data.blocksWarned = (SFR_Data.blocksWarned or 0) + 1
             Warn("Warning: Mailbox has player-sent mail from " .. PlayerMailSenders() .. ". Avoid opening.")
         end
     elseif event == "MAIL_CLOSED" then
@@ -116,6 +119,9 @@ end)
 -- hooksecurefunc runs us after the take, by which point the letter may
 -- be gone and the indices shifted.
 --
+-- There is a ~10 second window where the mailbox doesn't record you taking player-sent mail.
+-- Contents are cached and shown. Blind spot currently
+--
 -- Fails open. No snapshot entry means no violation, so a take after a
 -- /reload at an open mailbox goes unlogged. Logging it as unknown
 -- provenance would be more honest, but that needs Violation to record
@@ -123,13 +129,13 @@ end)
 SafeHook("TakeInboxItem",   function(index)
     local m = mailSnapshot[index]
     if m and m.isPlayer then
-        Violation("Took an item from player-sent mail (" .. (m.sender or "?") .. ")")
+        Violation("Took an item from player-sent mail (" .. (m.sender or "?") .. ")", "attempted")
     end
 end)
 SafeHook("TakeInboxMoney",  function(index) 
     local m = mailSnapshot[index]
     if m and m.isPlayer then
-        Violation("Took gold from player-sent mail (" .. (m.sender or "?") .. ")")
+        Violation("Took gold from player-sent mail (" .. (m.sender or "?") .. ")", "attempted")
     end
 end)
 

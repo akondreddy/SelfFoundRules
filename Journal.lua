@@ -53,7 +53,7 @@ end
 -- Writing to the record
 ----------------------------------------------------------------------
 
-local function LogEvent(kind, level, detail)
+local function LogEvent(kind, level, evidence, detail)
     local expansion, build, project = CurrentExpansion()
     local e = {
         kind        = kind,
@@ -64,6 +64,7 @@ local function LogEvent(kind, level, detail)
         project     = project,  -- raw WOW_PROJECT_ID; the label above is derived
         zone        = GetRealZoneText() or "?",
         rules       = CurrentRules(),
+        evidence    = evidence,
         played      = nil,      -- filled in by TIME_PLAYED_MSG if it arrives
         detail      = detail,
     }
@@ -139,11 +140,11 @@ journal:SetScript("OnEvent", function(self, event, arg1, arg2)
         local from = lastLevel or SFR_Data.historyBegins.level
         if lvl > from then
             -- Log the gapped level
-            LogEvent("gap", lvl, { from = from, to = lvl })
+            LogEvent("gap", lvl, "inferred", { from = from, to = lvl })
         end
 
     elseif event == "PLAYER_LEVEL_UP" then
-        local e = LogEvent("level", arg1)
+        local e = LogEvent("level", arg1, "observed")
         RequestTimePlayed()
         SFR.RequestScreenshot(e, "level")
         Say(("Level %d recorded - %s, rules: %s"):format(
